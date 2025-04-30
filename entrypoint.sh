@@ -2,7 +2,7 @@
 
 # Environment variables (with defaults)
 USER_NAME=${USER_NAME:-rstudio}
-USER_PWD=${USER_PWD:-rstudio}
+USER_PASSWORD=${USER_PASSWORD:-rstudio}
 
 # Create user if it doesn't exist
 if id "$USER_NAME" &>/dev/null; then
@@ -12,12 +12,12 @@ else
     useradd -m "$USER_NAME"
 
     # Set user password
-    echo "$USER_NAME:$USER_PWD" | chpasswd
+    echo "$USER_NAME:$USER_PASSWORD" | chpasswd
 
     # Add user to 'staff' group (optional, depending on your use case)
     adduser "$USER_NAME" staff
 
-    echo "User $USER_NAME created with password $USER_PWD"
+    echo "User $USER_NAME created with password $USER_PASSWORD"
 
     # Add user to sudo group
     usermod -aG sudo "$USER_NAME"
