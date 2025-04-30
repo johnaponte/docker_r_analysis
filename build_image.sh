@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
 fi
 
 R_VERSION="$1"
-IMAGE_NAME="docker_r_analysis:${R_VERSION}
+IMAGE_NAME="docker_r_analysis:${R_VERSION}"
 
 docker build \
   --build-arg R_VERSION="${R_VERSION}" \
@@ -17,3 +17,13 @@ docker build \
   .
 
 echo "Image ${IMAGE_NAME} built successfully."
+
+docker run \
+  -p 8787:8787 \
+  -d \
+  -e USER_NAME=master \
+  -e USER_PASSWORD=holahola \
+  -v /Users/japonte/development/rstudio_app2/projects:/home/master \
+  --name borrar \
+  ${IMAGE_NAME}
+
