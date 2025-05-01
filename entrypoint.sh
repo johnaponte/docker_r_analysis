@@ -26,5 +26,10 @@ else
     echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 fi
 
+# Modify R_LIBS to include the user home as first enty
+mkdir -p /home/$USER_NAME/R/library
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/R
+export R_LIBS="~/R/library:${R_LIBS:-/usr/local/lib/R/site-library:/usr/local/lib/R/library}"
+
 # Start RStudio Server
 exec /init
