@@ -12,7 +12,8 @@ This repository provides a Docker container for reproducible R analyses, based o
 - Sets `R_LIBS` to include home as the first library path.
 - Includes the appropriate `renv` package version matching `R_VERSION`.
 - Creates an RStudio user with a **randomly generated password** by default.
-- In addition, it can create a custom user by providing the `USER_NAME` and `USER_PASSWORD` environment variables at runtime, which should be the user for the container
+- In addition, it can create a custom user by providing the `USER_NAME` and `USER_PASSWORD` 
+  environment variables at runtime, which should be the user for the container
 
 ## Image Creation
 
@@ -22,13 +23,14 @@ Use the `build_image` utility script to simplify the process:
 
 ```bash
 # /build_image R_VERSION TAG
-./build_image 4.4.3 1
+./build_image.sh --rver 4.4.3 --tag 1 --namespacefrom rocker --namespaceto <your namespace>
 ```
 
-This will create the image `r_analysis-4_4_3:1`, based on the latest `rocker/verse:4.4.3` image.
+This will create the image <your namespace>/`r_analysis-4_4_3:1`, based on the latest verse:4.4.3`
+Please note that rocker does not produce ARM64 images, so you may need to build use your own build
+of ARM64 and this is why namespacefrom can be change.
 
 ## Container Deployment 
-
 Container can be run using Docker Compose an .env file (please note password is plain in .env)
 The yml file should be adapted to ensure container name is unique and the host port is not conflicting 
 other services in the running environment.
@@ -36,8 +38,7 @@ The volumen for projects have the correct path
 
 ```bash
 # Create the directory where to setup the project
-# <path_to_executable>/create_r_project.sh <IMAGE> <TAG>
-../create_r_project.sh r_analysis-4_4_3 1
+<path to script>/create_r_project.sh --container <your namespace>/r_analysis-4_4_3 --tag 1
 ```
 
 ### File structure

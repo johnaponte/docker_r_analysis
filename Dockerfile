@@ -1,6 +1,7 @@
 # By JJAV 2025
 ARG R_VERSION=4.4.3
-FROM rocker/verse:${R_VERSION}
+ARG NAMESPACE_FROM=rocker
+FROM ${NAMESPACE_FROM}/verse:${R_VERSION}
 
 # Set pkgr version
 ENV PKGR_VERSION=3.1.2
