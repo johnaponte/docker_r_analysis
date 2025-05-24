@@ -31,5 +31,9 @@ mkdir -p /home/$USER_NAME/R/library
 chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/R
 export R_LIBS="~/R/library:${R_LIBS:-/usr/local/lib/R/site-library:/usr/local/lib/R/library}"
 
+# Confirm rstudio run script is executable
+chmod +x /etc/services.d/rstudio/run
+chmod +x /etc/services.d/rstudio/finish
+
 # Start RStudio Server
 exec /init
