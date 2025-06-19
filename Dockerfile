@@ -23,6 +23,14 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/* \
  && Rscript -e "install.packages('renv')"
 
+ # Install chromium and dependencies
+ RUN apt-get update && \
+    apt-get install -y wget gnupg2 software-properties-common ca-certificates --no-install-recommends && \
+    add-apt-repository -y ppa:xtradeb/apps && \
+    apt-get update && \
+    apt-get install -y chromium chromium-driver --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+    
 # Customized entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
