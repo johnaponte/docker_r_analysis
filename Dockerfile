@@ -30,9 +30,15 @@ RUN apt-get update && apt-get install -y \
     apt-get update && \
     apt-get install -y chromium chromium-driver --no-install-recommends && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy rstudio-server config file
+COPY rserver.conf /etc/rstudio/rserver.conf
     
 # Customized entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+
+
 
 CMD ["/entrypoint.sh"]
