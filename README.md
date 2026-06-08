@@ -6,72 +6,92 @@ This repository provides a Docker container for reproducible R analyses, based o
 
 - Based on `rocker/verse`, with `R_VERSION` passed as a build argument.
 - Adds the following to the base image:
-  - **Java** (default in the Ubuntu-based `rocker/verse` container)
-  - **JAGS** (default in the Ubuntu-based `rocker/verse` container)
-  - **[pkgr](https://github.com/r-hub/pkgr)** for package management (default version: 3.1.2)
-- Sets `R_LIBS` to include home as the first library path.
-- Includes the appropriate `renv` package version matching `R_VERSION`.
+  - **Java**
+  - **JAGS**
+  - **[renv](https://rstudio.github.io/renv/)** for project-level package reproducibility
+  - **[pak](https://pak.r-lib.org/)** for fast and reliable package installation
+  - **[R-INLA](https://www.r-inla.org/)** for Bayesian inference using INLA
+  - **[targets](https://docs.ropensci.org/targets/) + [tarchetypes](https://docs.ropensci.org/tarchetypes/)** for pipeline-based analysis
+  - **[repana](https://cran.r-project.org/package=repana)** for reproducible analysis workflows
+  - **[quarto](https://quarto.org/)** R package (Quarto CLI is bundled in `rocker/verse`)
+  - **Full LaTeX base** (texlive-latex-base, texlive-xetex, texlive-luatex, biber, and more) for Quarto PDF rendering
+  - **Chromium** for headless browser support
+  - **GitHub CLI (gh)**
+- Sets `R_LIBS` to include the user home as the first library path.
 - Creates an RStudio user with a **randomly generated password** by default.
-- In addition, it can create a custom user by providing the `USER_NAME` and `USER_PASSWORD` 
-  environment variables at runtime, which should be the user for the container
+- Supports a custom user via `USER_NAME` and `USER_PASSWORD` environment variables at runtime.
 
 ## Image Creation
 
-Container can be customized using build-time and runtime environment variables.  
-Refer to the Dockerfile and entrypoint script for more details.  
-Use the `build_image` utility script to simplify the process:
+The tag is automatically determined by reading the latest tag from Docker Hub and incrementing it.
+The `--namespacefrom` defaults to `jjserver` but can be overridden.
 
 ```bash
-# /build_image R_VERSION TAG
-./build_image.sh --rver 4.4.3 --tag 1 --namespacefrom rocker --namespaceto <your namespace>
+./build_image.sh --rver 4.6.0 --namespaceto <your namespace>
 ```
 
-This will create the image <your namespace>/`r_analysis-4_4_3:1`, based on the latest verse:4.4.3`
-Please note that rocker does not produce ARM64 images, so you may need to build use your own build
-of ARM64 and this is why namespacefrom can be change.
+This will create `<your namespace>/r_analysis-4_6_0:<next tag>` and also tag it as `latest`.
 
-## Container Deployment 
-Container can be run using Docker Compose an .env file (please note password is plain in .env)
-The yml file should be adapted to ensure container name is unique and the host port is not conflicting 
-other services in the running environment.
-The volumen for projects have the correct path
+> **Note:** `rocker` does not produce ARM64 images. If you need ARM64 support, build your own
+> base image and pass it via `--namespacefrom`.
+
+## Running R from the Command Line
+
+To use R from the container without installing it locally, add this function to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-# Create the directory where to setup the project
-<path to script>/create_r_project.sh --container <your namespace>/r_analysis-4_4_3 --tag 1
+R() {
+  local image="${R_DOCKER_IMAGE:-jjserver/r_analysis-4_6_0:latest}"
+  docker run --rm -it \
+    -v "$(pwd):/home/rstudio/project" \
+    -w /home/rstudio/project \
+    "$image" R "$@"
+}
+```
+
+After reloading your shell (`source ~/.zshrc`), typing `R` will launch R inside the container
+with the current directory mounted as the working directory.
+
+## Container Deployment
+
+The container can be run using Docker Compose with an `.env` file (note: password is stored in plain text in `.env`).
+The `docker-compose.yml` should be adapted to ensure the container name is unique and the host port
+does not conflict with other services. The volume path for projects should be set correctly.
+
+```bash
+<path to script>/create_r_project.sh --container <your namespace>/r_analysis-4_6_0 --tag <tag>
 ```
 
 ### File structure
 ```
-r-analysis-proyect/
-├── .gitignore               # To not include in Git in case added to github
+r-analysis-project/
+├── .gitignore               # Prevents accidental Git inclusion
 ├── .env                     # Contains USER_NAME and USER_PASSWORD
 ├── docker-compose.yml       # For running the container
 └── projects/                # Volume for persistent analysis work
     └── (your R project files go here)
 ```
+
 ### `.gitignore` file:
 ```
-DS_STORE
+.DS_Store
 .env
 # Each project must have its own git repository
 projects
 ```
 
 ### `.env` file:
-
 ```env
 USER_NAME=myuser
 USER_PASSWORD=mysecretpass
 ```
 
 ### `docker-compose.yml`:
-
 ```yaml
 services:
   rstudio:
-    image: r_analysis_4.4.3:1
-    container_name: r_analysis_ana
+    image: <your namespace>/r_analysis-4_6_0:latest
+    container_name: r_analysis_myproject
     ports:
       - "8787:8787"
     environment:
