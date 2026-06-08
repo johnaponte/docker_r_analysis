@@ -52,22 +52,19 @@ fi
 R_VERSION_FORMATTED="${R_VERSION//./_}"
 REPO_NAME="r_analysis-${R_VERSION_FORMATTED}"
 
-# Read latest semver tag from Docker Hub and increment patch
+# Read latest integer tag from Docker Hub and increment
 echo "Fetching latest tag for ${NAMESPACE_TO}/${REPO_NAME} from Docker Hub..."
 LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/${NAMESPACE_TO}/${REPO_NAME}/tags/?page_size=100" \
   | jq -r '.results[].name' 2>/dev/null \
-  | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
-  | sort -V \
+  | grep -E '^[0-9]+$' \
+  | sort -n \
   | tail -1)
 
 if [ -z "$LATEST_TAG" ]; then
-  echo "No existing semver tag found — starting at 1.0.0"
-  NEW_TAG="1.0.0"
+  echo "No existing tag found — starting at 1"
+  NEW_TAG="1"
 else
-  MAJOR=$(echo "$LATEST_TAG" | cut -d. -f1)
-  MINOR=$(echo "$LATEST_TAG" | cut -d. -f2)
-  PATCH=$(echo "$LATEST_TAG" | cut -d. -f3)
-  NEW_TAG="${MAJOR}.${MINOR}.$((PATCH + 1))"
+  NEW_TAG="$((LATEST_TAG + 1))"
   echo "Latest tag: ${LATEST_TAG} → new tag: ${NEW_TAG}"
 fi
 
