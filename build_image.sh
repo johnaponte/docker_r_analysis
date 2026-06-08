@@ -1,28 +1,24 @@
 #!/bin/bash
 # Usage: ./build_image.sh \
 #          --rver <R_VERSION> \
-#          --tag <TAG> \
-#          --namespacefrom <SOURCE_NAMESPACE> \
-#          --namespaceto <TARGET_NAMESPACE>
+#          --namespaceto <TARGET_NAMESPACE> \
+#          [--namespacefrom <SOURCE_NAMESPACE>]
+#
+# Tag is automatically determined from the latest Docker Hub tag for the image.
 # by JJAV 20250520
 
 set -e
 
- # Default values
+# Default values
 R_VERSION=""
-TAG=""
-NAMESPACE_FROM=""
+NAMESPACE_FROM="jjserver"
 NAMESPACE_TO=""
 
- # Parse arguments
+# Parse arguments
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     --rver)
       R_VERSION="$2"
-      shift
-      ;;
-    --tag)
-      TAG="$2"
       shift
       ;;
     --namespacefrom)
@@ -35,27 +31,43 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     *)
       echo "Unknown parameter passed: $1"
-      echo "Usage: $0 --rver <R_VERSION> --tag <TAG> --namespacefrom <SOURCE_NAMESPACE> [--namespaceto <TARGET_NAMESPACE>]"
-      echo "  --rver: R version to use (e.g., 4.4.3)"
-      echo "  --tag: Tag for the resulting Docker image (e.g., latest)"
-      echo "  --namespacefrom: Namespace used inside the Docker build (passed as build arg)"
-      echo "  --namespaceto: Namespace used when tagging/pushing image"
+      echo "Usage: $0 --rver <R_VERSION> --namespaceto <TARGET_NAMESPACE> [--namespacefrom <SOURCE_NAMESPACE>]"
+      echo "  --rver:          R version to use (e.g., 4.4.3)"
+      echo "  --namespaceto:   Namespace used when tagging/pushing image"
+      echo "  --namespacefrom: Source of verse namespace (default: jjserver)"
       exit 1
       ;;
   esac
   shift
 done
 
-if [ -z "$R_VERSION" ] || [ -z "$TAG" ] || [ -z "$NAMESPACE_TO" ]; then
-  echo "Usage: $0 --rver <R_VERSION> --tag <TAG> --namespacefrom <SOURCE_NAMESPACE> --namespaceto <TARGET_NAMESPACE>"
-  echo "  --rver: R version to use (e.g., 4.4.3)"
-  echo "  --tag: Tag for the resulting Docker image (e.g., latest)"
-  echo "  --namespacefrom: Source of verse. Namespace  passed as build arg"
-  echo "  --namespaceto: Namespace used when tagging/pushing image (required)"
+if [ -z "$R_VERSION" ] || [ -z "$NAMESPACE_TO" ]; then
+  echo "Usage: $0 --rver <R_VERSION> --namespaceto <TARGET_NAMESPACE> [--namespacefrom <SOURCE_NAMESPACE>]"
+  echo "  --rver:          R version to use (e.g., 4.4.3)"
+  echo "  --namespaceto:   Namespace used when tagging/pushing image (required)"
+  echo "  --namespacefrom: Source of verse namespace (default: jjserver)"
   exit 1
 fi
 
 R_VERSION_FORMATTED="${R_VERSION//./_}"
+REPO_NAME="r_analysis-${R_VERSION_FORMATTED}"
+
+# Read latest integer tag from Docker Hub and increment
+echo "Fetching latest tag for ${NAMESPACE_TO}/${REPO_NAME} from Docker Hub..."
+LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/${NAMESPACE_TO}/${REPO_NAME}/tags/?page_size=100" \
+  | jq -r '.results[].name' 2>/dev/null \
+  | grep -E '^[0-9]+$' \
+  | sort -n \
+  | tail -1)
+
+if [ -z "$LATEST_TAG" ]; then
+  echo "No existing tag found — starting at 1"
+  NEW_TAG="1"
+else
+  NEW_TAG="$((LATEST_TAG + 1))"
+  echo "Latest tag: ${LATEST_TAG} → new tag: ${NEW_TAG}"
+fi
+
 CREATED_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 # Ensure a multiarch builder is configured
@@ -71,15 +83,15 @@ docker buildx build \
   --build-arg R_VERSION="${R_VERSION}" \
   --build-arg NAMESPACE_FROM="${NAMESPACE_FROM}" \
   --label org.opencontainers.image.title="R Analysis Container" \
-  --label org.opencontainers.image.version="${TAG}" \
+  --label org.opencontainers.image.version="${NEW_TAG}" \
   --label org.opencontainers.image.created="${CREATED_DATE}" \
-  --label org.opencontainers.image.description="Docker image for reproducible R analysis with rocker/verse, Java, JAGS, and pkgr." \
+  --label org.opencontainers.image.description="Docker image for reproducible R analysis with rocker/verse, Java, JAGS, renv, pak, Quarto/LaTeX, R-INLA, targets, tarchetypes, repana, chromium, and gh CLI." \
   --label org.opencontainers.image.licenses="MIT" \
   --label org.opencontainers.image.source="https://github.com/johnaponte/docker_r_analysis.git" \
   --label org.opencontainers.image.documentation="https://github.com/johnaponte/docker_r_analysis/blob/main/README.md" \
-  -t "${NAMESPACE_TO}/r_analysis-${R_VERSION_FORMATTED}:${TAG}" \
-  -t "${NAMESPACE_TO}/r_analysis-${R_VERSION_FORMATTED}:latest" \
+  -t "${NAMESPACE_TO}/${REPO_NAME}:${NEW_TAG}" \
+  -t "${NAMESPACE_TO}/${REPO_NAME}:latest" \
   --push \
   .
 
-echo "Image ${IMAGE_NAME} built successfully with metadata."
+echo "Image ${NAMESPACE_TO}/${REPO_NAME}:${NEW_TAG} built and pushed successfully."
