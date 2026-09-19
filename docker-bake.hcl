@@ -39,8 +39,14 @@ target "_common" {
 }
 
 target "r4-3-3" {
-  inherits = ["_common"]
+  inherits  = ["_common"]
+  # jjserver/verse:4.3.3 does not exist on Docker Hub (verified — the oldest
+  # published tag is 4.4.3), so this target uses rocker/verse instead, which
+  # does publish 4.3.3. rocker publishes no arm64 image, so amd64 only here,
+  # unlike every other target.
+  platforms = ["linux/amd64"]
   args = {
+    NAMESPACE_FROM = "rocker"
     R_VERSION      = "4.3.3"
     QUARTO_VERSION = "1.9.38"
     INLA_VERSION   = "23.05.30-1"
