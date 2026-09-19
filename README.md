@@ -30,12 +30,12 @@ The tag is automatically determined by reading the latest tag from Docker Hub an
 R/Quarto/INLA/CRAN-snapshot versions come from `docker-bake.hcl` (see [Versioning](#versioning)); `--namespacefrom` overrides the base image org and defaults to `jjserver`.
 
 ```bash
-./build_image.sh --target r4-6-1 --namespaceto <your namespace>
-# or, equivalently, using the R-version alias:
-./build_image.sh --rver 4.6.1 --namespaceto <your namespace>
-# with no --target/--rver, the bake file's default target (currently r4-6-1) is used:
+./build_image.sh --rver r4-6-1 --namespaceto <your namespace>
+# with no --rver, the bake file's default target (currently r4-6-1) is used:
 ./build_image.sh --namespaceto <your namespace>
 ```
+
+`--rver` takes a `docker-bake.hcl` target name exactly as it appears in that file (e.g. `r4-6-1`, not `4.6.1`) — every pinned version (R/Quarto/INLA/CRAN snapshot) comes from that target, nothing else to pass.
 
 This will create `<your namespace>/r_analysis-4_6_1:<next tag>` and also tag it as `latest`.
 

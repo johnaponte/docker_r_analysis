@@ -1,15 +1,13 @@
 #!/bin/bash
 # Usage: ./build_image.sh \
+#          [--rver <BAKE_TARGET>] \
 #          --namespaceto <TARGET_NAMESPACE> \
-#          [--target <BAKE_TARGET>] \
-#          [--rver <R_VERSION>] \
 #          [--namespacefrom <SOURCE_NAMESPACE>]
 #
-# R/Quarto/INLA/CRAN-snapshot versions are centralized in docker-bake.hcl.
-# --target selects a bake target directly (e.g. r4-6-1).
-# --rver is a convenience alias translated to --target r<version-with-dashes>;
-# it errors if it conflicts with an explicitly given --target.
-# With neither flag, the bake file's "default" group target is used.
+# --rver selects a docker-bake.hcl target directly by name (e.g. r4-6-1);
+# every pinned version (R/Quarto/INLA/CRAN snapshot) comes from that target,
+# nothing is derived or guessed. With no --rver, the bake file's "default"
+# group target is used.
 #
 # Tag is automatically determined from the latest Docker Hub tag for the image.
 # by JJAV 20250520, updated for docker-bake.hcl version centralization
@@ -17,16 +15,16 @@
 set -e
 
 BAKE_FILE="docker-bake.hcl"
-TARGET=""
-R_VERSION_ARG=""
+RVER=""
 NAMESPACE_FROM_OVERRIDE=""
 NAMESPACE_TO=""
 
 usage() {
-  echo "Usage: $0 --namespaceto <TARGET_NAMESPACE> [--target <BAKE_TARGET>] [--rver <R_VERSION>] [--namespacefrom <SOURCE_NAMESPACE>]"
+  echo "Usage: $0 [--rver <BAKE_TARGET>] --namespaceto <TARGET_NAMESPACE> [--namespacefrom <SOURCE_NAMESPACE>]"
+  echo "  --rver:          docker-bake.hcl target to build (e.g. r4-6-1), as named in that file."
+  echo "                   Defaults to the bake 'default' group target. R/Quarto/INLA/CRAN-snapshot"
+  echo "                   versions all come from this target — nothing else to pass."
   echo "  --namespaceto:   Namespace used when tagging/pushing image (required)"
-  echo "  --target:        docker-bake.hcl target to build (e.g. r4-6-1). Defaults to the bake 'default' group target."
-  echo "  --rver:          R version (e.g. 4.6.1) — resolved to a bake target (r4-6-1). Alias for --target."
   echo "  --namespacefrom: Overrides docker-bake.hcl's NAMESPACE_FROM (source of the verse image) for this build"
   exit 1
 }
@@ -35,11 +33,7 @@ usage() {
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     --rver)
-      R_VERSION_ARG="$2"
-      shift
-      ;;
-    --target)
-      TARGET="$2"
+      RVER="$2"
       shift
       ;;
     --namespacefrom)
@@ -62,54 +56,16 @@ done
 command -v jq >/dev/null || { echo "ERROR: jq is required" >&2; exit 1; }
 
 # `bake --print` uses Docker's own HCL parser, so nothing here has to
-# understand the file format. Printed alone, it only resolves the file's
-# "default" group — the right way to read what that group actually is.
+# understand the file format.
 DEFAULT_TARGET=$(docker buildx bake -f "$BAKE_FILE" --print 2>/dev/null | jq -r '.group.default.targets[0] // empty')
 if [ -z "$DEFAULT_TARGET" ]; then
   echo "ERROR: could not resolve default target from ${BAKE_FILE}" >&2
   exit 1
 fi
+TARGET_KEY="${RVER:-$DEFAULT_TARGET}"
 
-# To resolve --rver by R_VERSION (see below) every target must be fully
-# resolved, not just the default group's — but passing every target name to
-# --print makes bake treat THAT set as "default" in its output, so the real
-# default group must come from the call above, not this one. Target names
-# are plain identifiers (no spaces/globs), so word-splitting them is safe —
-# kept as a plain string rather than an array for bash 3.2 compatibility
-# (macOS ships bash 3.2, which has no mapfile/readarray).
-ALL_TARGETS=$(docker buildx bake -f "$BAKE_FILE" --list=targets 2>/dev/null | tail -n +2 | awk '{print $1}')
-if [ -z "$ALL_TARGETS" ]; then
-  echo "ERROR: could not list targets from ${BAKE_FILE}" >&2
-  exit 1
-fi
-BAKE_JSON=$(docker buildx bake -f "$BAKE_FILE" --print $ALL_TARGETS 2>/dev/null || true)
+BAKE_JSON=$(docker buildx bake -f "$BAKE_FILE" --print "$TARGET_KEY" 2>/dev/null || true)
 if [ -z "$BAKE_JSON" ]; then
-  echo "ERROR: could not read ${BAKE_FILE}" >&2
-  exit 1
-fi
-
-# --rver resolves to a target by matching its R_VERSION arg, not by guessing
-# a target-name convention — so it still works if a target is ever named
-# differently from its R_VERSION.
-if [ -n "$R_VERSION_ARG" ]; then
-  RVER_TARGETS=$(jq -r --arg rv "$R_VERSION_ARG" '.target | to_entries[] | select(.value.args.R_VERSION == $rv) | .key' <<<"$BAKE_JSON")
-  if [ -z "$RVER_TARGETS" ]; then
-    echo "ERROR: no target in ${BAKE_FILE} has R_VERSION = ${R_VERSION_ARG}" >&2
-    exit 1
-  fi
-  if [ "$(wc -l <<<"$RVER_TARGETS" | tr -d ' ')" -gt 1 ]; then
-    echo "ERROR: multiple targets in ${BAKE_FILE} have R_VERSION = ${R_VERSION_ARG}: $(tr '\n' ' ' <<<"$RVER_TARGETS")" >&2
-    exit 1
-  fi
-  if [ -n "$TARGET" ] && [ "$TARGET" != "$RVER_TARGETS" ]; then
-    echo "ERROR: --rver ${R_VERSION_ARG} (resolves to target '${RVER_TARGETS}') conflicts with --target ${TARGET}" >&2
-    exit 1
-  fi
-  TARGET="$RVER_TARGETS"
-fi
-TARGET_KEY="${TARGET:-$DEFAULT_TARGET}"
-
-if [ "$(jq -r --arg t "$TARGET_KEY" '.target | has($t)' <<<"$BAKE_JSON")" != "true" ]; then
   echo "ERROR: target '${TARGET_KEY}' not found in ${BAKE_FILE}" >&2
   exit 1
 fi
