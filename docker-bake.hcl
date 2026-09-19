@@ -15,10 +15,9 @@
 # default target) and refuses to build if they have drifted.
 #
 # QUARTO_VERSION/INLA_VERSION come from docker_verse_mod/docker-bake.hcl,
-# the repo that holds the intended R/Quarto/INLA version matrix (see
-# PORTING_NOTES.md §1). CRAN_SNAPSHOT is this repo's own addition — pick a
-# recent date for the R version that is current, and for a superseded one,
-# the day before its successor was released.
+# the repo that holds the intended R/Quarto/INLA version matrix. CRAN_SNAPSHOT
+# is this repo's own addition — pick a recent date for the R version that is
+# current, and for a superseded one, the day before its successor was released.
 
 variable "REGISTRY" { default = "jjserver" }
 
@@ -45,11 +44,9 @@ target "r4-3-3" {
     R_VERSION      = "4.3.3"
     QUARTO_VERSION = "1.9.38"
     INLA_VERSION   = "23.05.30-1"
-    # TODO: no verified P3M snapshot date exists for R 4.3.3's era yet.
-    # Research and set a real yyyy-mm-dd date before building this target —
-    # both set_cran_snapshot.sh and build_image.sh refuse to build while
-    # this placeholder is present.
-    CRAN_SNAPSHOT  = "TODO-VERIFY-CRAN-SNAPSHOT-DATE-FOR-R-4.3.3"
+    # Day before R 4.4.0 was released (2024-04-24, real r-project.org date),
+    # so the package set matches the era when 4.3.3 was current.
+    CRAN_SNAPSHOT  = "2024-04-23"
   }
   tags = [
     "${REGISTRY}/r_analysis-4_3_3:${BUILD_TAG}",
@@ -63,8 +60,9 @@ target "r4-4-3" {
     R_VERSION      = "4.4.3"
     QUARTO_VERSION = "1.9.38"
     INLA_VERSION   = "24.05.10"
-    # TODO: unverified — see r4-3-3 note above.
-    CRAN_SNAPSHOT  = "TODO-VERIFY-CRAN-SNAPSHOT-DATE-FOR-R-4.4.3"
+    # Day before R 4.5.0 was released (2025-04-11, real r-project.org date),
+    # so the package set matches the era when 4.4.3 was current.
+    CRAN_SNAPSHOT  = "2025-04-10"
   }
   tags = [
     "${REGISTRY}/r_analysis-4_4_3:${BUILD_TAG}",
@@ -78,8 +76,9 @@ target "r4-5-3" {
     R_VERSION      = "4.5.3"
     QUARTO_VERSION = "1.9.38"
     INLA_VERSION   = "25.04.29"
-    # TODO: unverified — see r4-3-3 note above.
-    CRAN_SNAPSHOT  = "TODO-VERIFY-CRAN-SNAPSHOT-DATE-FOR-R-4.5.3"
+    # Day before R 4.6.0 was released (2026-04-24, r-project.org / r-announce),
+    # so the package set matches the era when 4.5.3 was current.
+    CRAN_SNAPSHOT  = "2026-04-23"
   }
   tags = [
     "${REGISTRY}/r_analysis-4_5_3:${BUILD_TAG}",
@@ -112,8 +111,11 @@ target "r4-6-1" {
     R_VERSION      = "4.6.1"
     QUARTO_VERSION = "1.10.18"
     INLA_VERSION   = "26.08.07"
-    # Current R version, so a recent snapshot.
-    CRAN_SNAPSHOT  = "2026-09-19"
+    # Current R version — resolved to the day the image is actually built,
+    # so this never needs manual bumping. Once 4.6.1 is superseded and this
+    # target is frozen for reproducibility, replace this with a fixed date
+    # (day before the successor's release), same as the other targets above.
+    CRAN_SNAPSHOT  = formatdate("YYYY-MM-DD", timestamp())
   }
   tags = [
     "${REGISTRY}/r_analysis-4_6_1:${BUILD_TAG}",

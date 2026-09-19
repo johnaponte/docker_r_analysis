@@ -15,6 +15,9 @@ ARG INLA_VERSION=26.08.07
 # Dated Posit snapshot that freezes every R package version. Without it the
 # base image's .../noble/latest resolves packages to whatever is current on
 # build day, so the same commit produces a different environment each time.
+# This default is a static fallback for a plain `docker build`; building via
+# docker-bake.hcl resolves the current R version's target to the actual
+# build day instead (see docker-bake.hcl).
 ARG CRAN_SNAPSHOT=2026-09-19
 
 ENV DEBIAN_FRONTEND=noninteractive \

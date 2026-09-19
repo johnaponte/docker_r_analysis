@@ -94,10 +94,12 @@ fi
 # Drift check: bake args vs Dockerfile ARG defaults. Only meaningful for the
 # default target, since the Dockerfile only carries one set of defaults —
 # bake always overrides them anyway, so the check would block every build
-# but the default one if applied elsewhere.
+# but the default one if applied elsewhere. CRAN_SNAPSHOT is excluded: the
+# default target resolves it to today's date (see docker-bake.hcl), so it
+# never matches a static Dockerfile ARG — that's expected, not drift.
 if [ "$TARGET_KEY" == "$DEFAULT_TARGET" ]; then
   DRIFT=""
-  for ARG_NAME in R_VERSION QUARTO_VERSION INLA_VERSION CRAN_SNAPSHOT; do
+  for ARG_NAME in R_VERSION QUARTO_VERSION INLA_VERSION; do
     BAKE_VAL=$(get_arg "$ARG_NAME")
     DF_VAL=$(grep -m1 "^ARG ${ARG_NAME}=" Dockerfile | cut -d= -f2- || true)
     if [[ -n "$BAKE_VAL" && -n "$DF_VAL" && "$BAKE_VAL" != "$DF_VAL" ]]; then

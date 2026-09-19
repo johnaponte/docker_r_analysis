@@ -55,7 +55,7 @@ docker buildx bake --print r4-6-0       # show a specific target
 
 To add a new R version, add a `target` block to `docker-bake.hcl` (INLA/Quarto versions should follow the matrix in `docker_verse_mod/docker-bake.hcl`); no Dockerfile edit is needed unless that target is promoted to `default`, in which case the Dockerfile's `ARG` defaults must be updated to match (`build_image.sh` will otherwise refuse to build the default target).
 
-Some targets (`r4-3-3`, `r4-4-3`, `r4-5-3`) currently carry a `TODO-VERIFY-CRAN-SNAPSHOT-DATE-FOR-R-*` placeholder instead of a real `CRAN_SNAPSHOT` date — both `scripts/set_cran_snapshot.sh` and `build_image.sh` refuse to build those targets until a real date is researched and filled in.
+A target's `CRAN_SNAPSHOT` should be a real P3M snapshot date, not left blank. The `default` group target (currently `r4-6-1`) resolves it to the actual build day automatically (`formatdate("YYYY-MM-DD", timestamp())` in `docker-bake.hcl`), so it never needs manual bumping while that R version is current. A superseded target should instead carry a fixed date — the day before its successor was released (see the dated comment on each target); once `r4-6-1` is superseded, replace its dynamic snapshot with a fixed one the same way. `scripts/set_cran_snapshot.sh` and `build_image.sh` both refuse to build a target whose `CRAN_SNAPSHOT` still carries a `TODO-VERIFY-*` placeholder.
 
 ## Repository Structure
 
