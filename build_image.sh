@@ -61,31 +61,58 @@ done
 [ -z "$NAMESPACE_TO" ] && usage
 command -v jq >/dev/null || { echo "ERROR: jq is required" >&2; exit 1; }
 
-# Resolve the bake file's default target
+# `bake --print` uses Docker's own HCL parser, so nothing here has to
+# understand the file format. Printed alone, it only resolves the file's
+# "default" group — the right way to read what that group actually is.
 DEFAULT_TARGET=$(docker buildx bake -f "$BAKE_FILE" --print 2>/dev/null | jq -r '.group.default.targets[0] // empty')
 if [ -z "$DEFAULT_TARGET" ]; then
   echo "ERROR: could not resolve default target from ${BAKE_FILE}" >&2
   exit 1
 fi
 
-if [ -n "$R_VERSION_ARG" ]; then
-  RVER_TARGET="r${R_VERSION_ARG//./-}"
-  if [ -n "$TARGET" ] && [ "$TARGET" != "$RVER_TARGET" ]; then
-    echo "ERROR: --rver ${R_VERSION_ARG} (resolves to target '${RVER_TARGET}') conflicts with --target ${TARGET}" >&2
-    exit 1
-  fi
-  TARGET="$RVER_TARGET"
-fi
-TARGET="${TARGET:-$DEFAULT_TARGET}"
-
-# Resolve versions from docker-bake.hcl — `bake --print` uses Docker's own
-# HCL parser, so nothing here has to understand the file format.
-BAKE_JSON=$(docker buildx bake -f "$BAKE_FILE" --print "$TARGET" 2>/dev/null || true)
-if [ -z "$BAKE_JSON" ]; then
-  echo "ERROR: target '${TARGET}' not found in ${BAKE_FILE}" >&2
+# To resolve --rver by R_VERSION (see below) every target must be fully
+# resolved, not just the default group's — but passing every target name to
+# --print makes bake treat THAT set as "default" in its output, so the real
+# default group must come from the call above, not this one. Target names
+# are plain identifiers (no spaces/globs), so word-splitting them is safe —
+# kept as a plain string rather than an array for bash 3.2 compatibility
+# (macOS ships bash 3.2, which has no mapfile/readarray).
+ALL_TARGETS=$(docker buildx bake -f "$BAKE_FILE" --list=targets 2>/dev/null | tail -n +2 | awk '{print $1}')
+if [ -z "$ALL_TARGETS" ]; then
+  echo "ERROR: could not list targets from ${BAKE_FILE}" >&2
   exit 1
 fi
-TARGET_KEY=$(jq -r '.target | keys[0]' <<<"$BAKE_JSON")
+BAKE_JSON=$(docker buildx bake -f "$BAKE_FILE" --print $ALL_TARGETS 2>/dev/null || true)
+if [ -z "$BAKE_JSON" ]; then
+  echo "ERROR: could not read ${BAKE_FILE}" >&2
+  exit 1
+fi
+
+# --rver resolves to a target by matching its R_VERSION arg, not by guessing
+# a target-name convention — so it still works if a target is ever named
+# differently from its R_VERSION.
+if [ -n "$R_VERSION_ARG" ]; then
+  RVER_TARGETS=$(jq -r --arg rv "$R_VERSION_ARG" '.target | to_entries[] | select(.value.args.R_VERSION == $rv) | .key' <<<"$BAKE_JSON")
+  if [ -z "$RVER_TARGETS" ]; then
+    echo "ERROR: no target in ${BAKE_FILE} has R_VERSION = ${R_VERSION_ARG}" >&2
+    exit 1
+  fi
+  if [ "$(wc -l <<<"$RVER_TARGETS" | tr -d ' ')" -gt 1 ]; then
+    echo "ERROR: multiple targets in ${BAKE_FILE} have R_VERSION = ${R_VERSION_ARG}: $(tr '\n' ' ' <<<"$RVER_TARGETS")" >&2
+    exit 1
+  fi
+  if [ -n "$TARGET" ] && [ "$TARGET" != "$RVER_TARGETS" ]; then
+    echo "ERROR: --rver ${R_VERSION_ARG} (resolves to target '${RVER_TARGETS}') conflicts with --target ${TARGET}" >&2
+    exit 1
+  fi
+  TARGET="$RVER_TARGETS"
+fi
+TARGET_KEY="${TARGET:-$DEFAULT_TARGET}"
+
+if [ "$(jq -r --arg t "$TARGET_KEY" '.target | has($t)' <<<"$BAKE_JSON")" != "true" ]; then
+  echo "ERROR: target '${TARGET_KEY}' not found in ${BAKE_FILE}" >&2
+  exit 1
+fi
 get_arg() { jq -r --arg t "$TARGET_KEY" --arg a "$1" '.target[$t].args[$a] // empty' <<<"$BAKE_JSON"; }
 
 R_VERSION=$(get_arg R_VERSION)
