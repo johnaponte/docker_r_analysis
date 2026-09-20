@@ -61,6 +61,13 @@ cd ..
 mkdir -p /usr/local/include/GMRFLib/fsort
 cp /tmp/r-inla/gmrflib/fsort/*.h /usr/local/include/GMRFLib/fsort/
 
+# Some older INLA releases also drop headers from the Makefile's own HEADERS
+# list despite the file existing in gmrflib/ — e.g. Version_24.05.10 omits
+# sha.h, which graph.h includes, so inlaprog fails with "GMRFLib/sha.h: No
+# such file or directory". Rather than special-case one header per version,
+# copy every top-level gmrflib/*.h that `make install` didn't already place.
+cp -n /tmp/r-inla/gmrflib/*.h /usr/local/include/GMRFLib/
+
 # cgeneric-mapper.c expects external-packages/cgeneric-defs.h but the file is cgeneric.h
 ln -sf /tmp/r-inla/external-packages/cgeneric.h \
        /tmp/r-inla/external-packages/cgeneric-defs.h

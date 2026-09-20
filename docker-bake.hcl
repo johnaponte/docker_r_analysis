@@ -65,7 +65,16 @@ target "r4-4-3" {
   args = {
     R_VERSION      = "4.4.3"
     QUARTO_VERSION = "1.9.38"
-    INLA_VERSION   = "24.05.10"
+    # docker_verse_mod's matrix lists 24.05.10, but that release predates
+    # GMRFLib bundling its own arm64-compatible taucs (added in git tag
+    # Version_25.03.11) — it still depends on the old extlibs/taucs-2.2
+    # build, which hardcodes x86 SSE compiler flags and does not compile on
+    # arm64. verse_mod never noticed because it is amd64-only. Version_25.03.11
+    # itself was never published as an R package (only some git tags are);
+    # 25.03.24 is the first published version at or after the fix, and was
+    # still current R-4.4.3-era (R 4.5.0 didn't release until 2025-04-11),
+    # so it's used here instead.
+    INLA_VERSION   = "25.03.24"
     # Day before R 4.5.0 was released (2025-04-11, real r-project.org date),
     # so the package set matches the era when 4.4.3 was current.
     CRAN_SNAPSHOT  = "2025-04-10"
