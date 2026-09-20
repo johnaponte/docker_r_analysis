@@ -57,6 +57,8 @@ To add a new R version, add a `target` block to `docker-bake.hcl` (INLA/Quarto v
 
 A target's `CRAN_SNAPSHOT` should be a real P3M snapshot date, not left blank. The `default` group target (currently `r4-6-1`) resolves it to the actual build day automatically (`formatdate("YYYY-MM-DD", timestamp())` in `docker-bake.hcl`), so it never needs manual bumping while that R version is current. A superseded target should instead carry a fixed date — the day before its successor was released (see the dated comment on each target); once `r4-6-1` is superseded, replace its dynamic snapshot with a fixed one the same way. `scripts/set_cran_snapshot.sh` and `build_image.sh` both refuse to build a target whose `CRAN_SNAPSHOT` still carries a `TODO-VERIFY-*` placeholder.
 
+`r4-3-3` is a special case: `jjserver/verse:4.3.3` was never published (the oldest published tag is `4.4.3`), so that target builds from `rocker/verse:4.3.3` instead (`NAMESPACE_FROM = "rocker"`, overriding the file's default) and is `linux/amd64` only, since `rocker/verse` publishes no arm64 image for it — every other target is `linux/amd64,linux/arm64`.
+
 ## Repository Structure
 
 ```

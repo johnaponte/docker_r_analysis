@@ -78,6 +78,11 @@ CRAN_SNAPSHOT=$(get_arg CRAN_SNAPSHOT)
 NAMESPACE_FROM=$(get_arg NAMESPACE_FROM)
 [ -n "$NAMESPACE_FROM_OVERRIDE" ] && NAMESPACE_FROM="$NAMESPACE_FROM_OVERRIDE"
 
+# Not every target supports both platforms (e.g. r4-3-3 builds from
+# rocker/verse, which publishes no arm64 image) — read the target's own
+# platform list from bake instead of assuming both are always available.
+PLATFORMS=$(jq -r --arg t "$TARGET_KEY" '.target[$t].platforms // ["linux/amd64","linux/arm64"] | join(",")' <<<"$BAKE_JSON")
+
 for v in R_VERSION QUARTO_VERSION INLA_VERSION CRAN_SNAPSHOT NAMESPACE_FROM; do
   if [ -z "${!v}" ]; then
     echo "ERROR: ${v} could not be resolved for target '${TARGET_KEY}'" >&2
@@ -147,7 +152,7 @@ fi
 docker buildx inspect --bootstrap
 
 docker buildx build \
-  --platform linux/amd64,linux/arm64 \
+  --platform "${PLATFORMS}" \
   --build-arg R_VERSION="${R_VERSION}" \
   --build-arg NAMESPACE_FROM="${NAMESPACE_FROM}" \
   --build-arg QUARTO_VERSION="${QUARTO_VERSION}" \
